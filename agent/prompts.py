@@ -27,6 +27,12 @@ IMPORTANT RULES:
   'South Australia', 'Western Australia', 'Tasmania', 'Northern Territory',
   'Australian Capital Territory'
 
+MANDATORY EXECUTION STEPS (follow these in order for every question):
+1. Use sql_db_query_checker to validate your SQL query.
+2. You MUST then call sql_db_query to actually execute the validated query and retrieve real data.
+3. Only return a final answer AFTER you have received real query results from sql_db_query.
+   Never return a final answer based only on the query checker output — that is not data.
+
 EXAMPLE QUERIES:
 
 Q: Top 3 most diverse suburbs in Victoria
@@ -120,14 +126,22 @@ def create_demografy_agent():
         temperature=0,  # Keep deterministic for SQL generation
     )
 
+    agent_suffix = (
+        "CRITICAL REMINDER: You are not done until you have called sql_db_query "
+        "and received real rows from the database. "
+        "After sql_db_list_tables or sql_db_query_checker you MUST continue and "
+        "call sql_db_query next. Never produce a final answer before executing the query."
+    )
+
     # Create the SQL agent with our few-shot prefix
     _agent = create_sql_agent(
         llm=llm,
         db=db,
         agent_type="openai-tools",
         prefix=FEW_SHOT_PREFIX,
+        suffix=agent_suffix,
         verbose=True,
-        max_iterations=100,
+        max_iterations=15,
         handle_parsing_errors=True,
     )
     return _agent

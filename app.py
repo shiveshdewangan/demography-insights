@@ -2,55 +2,39 @@ import streamlit as st
 import pandas as pd
 import json
 import os
-import hashlib
 import re
 
 from agent.prompts import ask_question
+from auth.login import login_signup
+from auth.users import get_usage, increment_usage
+from auth.rbac import is_within_limit, get_usage_limit, is_near_limit
 
 
 # -------------------------------
 # FILE PATHS
 # -------------------------------
-USERS_FILE = "users.json"
 CHAT_DIR = "chat_history"
-
 os.makedirs(CHAT_DIR, exist_ok=True)
 
 
 # -------------------------------
-# UTIL FUNCTIONS
+# CHAT HISTORY
 # -------------------------------
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
-
-
-def load_users():
-    if not os.path.exists(USERS_FILE):
-        return {}
-    with open(USERS_FILE, "r") as f:
-        return json.load(f)
-
-
-def save_users(users):
-    with open(USERS_FILE, "w") as f:
-        json.dump(users, f)
-
-
-def load_chat(username):
-    path = f"{CHAT_DIR}/{username}.json"
+def load_chat(user_id):
+    path = f"{CHAT_DIR}/{user_id}.json"
     if not os.path.exists(path):
         return []
     with open(path, "r") as f:
         return json.load(f)
 
 
-def save_chat(username, chat):
-    with open(f"{CHAT_DIR}/{username}.json", "w") as f:
+def save_chat(user_id, chat):
+    with open(f"{CHAT_DIR}/{user_id}.json", "w") as f:
         json.dump(chat, f)
 
 
 # -------------------------------
-# PARSER (same as before)
+# PARSER
 # -------------------------------
 def parse_response(text):
     data = []
@@ -81,59 +65,55 @@ def parse_response(text):
 
 
 # -------------------------------
-# AUTH UI
-# -------------------------------
-def login_signup():
-    st.sidebar.title("🔐 Login / Signup")
-
-    choice = st.sidebar.radio("Choose", ["Login", "Signup"])
-
-    users = load_users()
-
-    username = st.sidebar.text_input("Username")
-    password = st.sidebar.text_input("Password", type="password")
-
-    if choice == "Signup":
-        if st.sidebar.button("Create Account"):
-            if username in users:
-                st.sidebar.error("User already exists")
-            else:
-                users[username] = {
-                    "password": hash_password(password),
-                    "usage": 0,
-                    "paid": False,
-                }
-                save_users(users)
-                st.sidebar.success("Account created!")
-
-    else:
-        if st.sidebar.button("Login"):
-            if username in users and users[username]["password"] == hash_password(
-                password
-            ):
-                st.session_state.user = username
-                st.success(f"Welcome {username} 👋")
-            else:
-                st.error("Invalid credentials")
-
-
-# -------------------------------
 # MAIN APP
 # -------------------------------
 st.set_page_config(page_title="Suburb AI SaaS", layout="wide")
 
 login_signup()
 
-
 if "user" not in st.session_state:
     st.warning("Please login to continue")
     st.stop()
 
-
 user = st.session_state.user
-users = load_users()
+tier = st.session_state.get("tier", "free")
 
 st.title("🏡 Suburb Finder AI")
+
+# -------------------------------
+# TIER LIMIT CHECK
+# -------------------------------
+usage = get_usage(user)
+
+if not is_within_limit(usage, tier):
+    limit = get_usage_limit(tier)
+    st.markdown(
+        f"""
+        <div style="background:#c0392b;color:#fff;padding:16px 20px;
+                    border-radius:8px;font-size:16px;font-weight:600;margin-bottom:12px;">
+            🚫 You have exhausted your <strong>{tier}</strong> tier limit of
+            <strong>{limit}</strong> questions.
+            Your limit resets 24 hours after your last login.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.stop()
+
+if is_near_limit(usage, tier):
+    limit = get_usage_limit(tier)
+    pct = int(usage / limit * 100)
+    st.markdown(
+        f"""
+        <div style="background:#e67e22;color:#fff;padding:16px 20px;
+                    border-radius:8px;font-size:16px;font-weight:600;margin-bottom:12px;">
+            ⚠️ You have used <strong>{usage} of {limit}</strong> questions
+            on the <strong>{tier}</strong> tier ({pct}% used).
+            You are approaching your limit — it resets 24 hours after your last login.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 # -------------------------------
 # LOAD CHAT HISTORY
@@ -144,29 +124,12 @@ for chat in chat_history:
     with st.chat_message(chat["role"]):
         st.write(chat["content"])
 
-
 # -------------------------------
 # INPUT
 # -------------------------------
 prompt = st.chat_input("Ask your question...")
 
-
 if prompt:
-
-    # -------------------------------
-    # FREE TIER CHECK
-    # -------------------------------
-    usage = users[user]["usage"]
-    is_paid = users[user]["paid"]
-
-    if usage >= 3 and not is_paid:
-        st.error("🚫 Free limit reached. Please upgrade to continue.")
-
-        if st.button("💳 Upgrade (Mock Payment)"):
-            users[user]["paid"] = True
-            save_users(users)
-            st.success("Payment successful! Unlimited access enabled.")
-        st.stop()
 
     # -------------------------------
     # SAVE USER MESSAGE
@@ -179,7 +142,11 @@ if prompt:
     # -------------------------------
     # AI RESPONSE
     # -------------------------------
-    response = ask_question(prompt)
+    try:
+        response = ask_question(prompt)
+    except Exception as e:
+        st.error(f"Agent error: {e}")
+        st.stop()
 
     with st.chat_message("assistant"):
         st.write(response)
@@ -202,13 +169,8 @@ if prompt:
                 st.bar_chart(df.set_index(df.columns[0])[numeric_cols[0]])
 
     # -------------------------------
-    # SAVE CHAT
+    # SAVE CHAT & UPDATE USAGE
     # -------------------------------
     chat_history.append({"role": "assistant", "content": str(response)})
     save_chat(user, chat_history)
-
-    # -------------------------------
-    # UPDATE USAGE
-    # -------------------------------
-    users[user]["usage"] += 1
-    save_users(users)
+    increment_usage(user)

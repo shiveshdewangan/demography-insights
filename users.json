@@ -1,1 +1,21 @@
-{"shivesh": {"password": "ecd71870d1963316a97e3ac3408c9835ad8cf0f3c1bc703527c30265534f75ae", "usage": 3, "paid": false}, "testuser": {"password": "cf80cd8aed482d5d1527d7dc72fceff84e6326592848447d2dc0b0e87dfc9a90", "usage": 1, "paid": false}, "hello": {"password": "486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7", "usage": 3, "paid": false}, "hello123": {"password": "486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7", "usage": 1, "paid": false}}
+{
+  "user_006": {
+    "usage": 2,
+    "last_login": "2026-04-22T18:28:56.015132"
+  },
+  "user_031": {
+    "usage": 3
+  },
+  "user_001": {
+    "usage": 3,
+    "last_login": "2026-04-22T18:38:24.340147"
+  },
+  "user_002": {
+    "usage": 3,
+    "last_login": "2026-04-22T18:40:33.670738"
+  },
+  "user_073": {
+    "usage": 5,
+    "last_login": "2026-04-22T18:42:54.784919"
+  }
+}
