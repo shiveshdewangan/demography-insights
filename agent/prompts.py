@@ -1,4 +1,4 @@
-FEW_SHOT_PREFIX = """You are a demographic data analyst for Demografy.
+_FALLBACK_PREFIX = """You are a demographic data analyst for Demografy.
 You query Australian demographic data from BigQuery.
 
 TABLE: demografy.prod_tables.a_master_view
@@ -91,18 +91,35 @@ SQL: SELECT sa2_name, kpi_7_val AS rental_access
      LIMIT 10;
 """
 
-### Step 11: Build the LangChain SQL agent
-
-# ```python
-# agent/sql_agent.py
 import os
 from dotenv import load_dotenv
+
+load_dotenv()
+
+
+def _load_prefix() -> str:
+    repo = os.getenv("LANGCHAIN_PROMPT_REPO")
+    if not repo:
+        return _FALLBACK_PREFIX
+    version = os.getenv("LANGCHAIN_PROMPT_VERSION", "")
+    ref = f"{repo}:{version}" if version else repo
+    try:
+        from langsmith import Client
+        prompt = Client().pull_prompt(ref)
+        print(f"[prompts] Loaded prompt from hub: {ref}")
+        return prompt.template
+    except Exception as e:
+        print(f"[prompts] Hub pull failed ({e}), using fallback.")
+        return _FALLBACK_PREFIX
+
+
+FEW_SHOT_PREFIX = _load_prefix()
+
+
+### agent setup
 from langchain_community.utilities import SQLDatabase
 from langchain_community.agent_toolkits import create_sql_agent
 from langchain_google_genai import ChatGoogleGenerativeAI
-# from agent.prompts import FEW_SHOT_PREFIX
-
-load_dotenv()
 
 _agent = None  # Module-level cache so we only create the agent once
 
