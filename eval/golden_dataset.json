@@ -1,0 +1,72 @@
+[
+  {
+    "id": 1,
+    "question": "What are the top 3 suburbs in Victoria by diversity index?",
+    "expected_sql_pattern": "SELECT sa2_name, kpi_2_val FROM demografy.prod_tables.a_master_view WHERE state = 'Victoria' ORDER BY kpi_2_val DESC LIMIT 3",
+    "validation": "exact_sa2_match",
+    "expected_columns": ["sa2_name", "kpi_2_val"]
+  },
+  {
+    "id": 2,
+    "question": "What is the average prosperity score in New South Wales?",
+    "expected_sql_pattern": "SELECT AVG(kpi_1_val) FROM demografy.prod_tables.a_master_view WHERE state = 'New South Wales'",
+    "validation": "numeric_tolerance_1pct",
+    "expected_columns": ["avg_prosperity_score"]
+  },
+  {
+    "id": 3,
+    "question": "Which state has the highest average learning level?",
+    "expected_sql_pattern": "SELECT state, AVG(kpi_4_val) FROM demografy.prod_tables.a_master_view GROUP BY state ORDER BY avg_learning_level DESC LIMIT 1",
+    "validation": "exact_state_match",
+    "expected_columns": ["state"]
+  },
+  {
+    "id": 4,
+    "question": "Show me suburbs with social housing above 20%",
+    "expected_sql_pattern": "SELECT sa2_name, kpi_5_val FROM demografy.prod_tables.a_master_view WHERE kpi_5_val > 20",
+    "validation": "row_count_and_sample",
+    "expected_columns": ["sa2_name", "kpi_5_val"]
+  },
+  {
+    "id": 5,
+    "question": "What are the most affordable rental suburbs in Queensland?",
+    "expected_sql_pattern": "SELECT sa2_name, kpi_7_val FROM demografy.prod_tables.a_master_view WHERE state = 'Queensland' ORDER BY kpi_7_val DESC LIMIT 10",
+    "validation": "correct_ordering",
+    "expected_columns": ["sa2_name", "kpi_7_val"]
+  },
+  {
+    "id": 6,
+    "question": "Compare home ownership vs rental access across all states",
+    "expected_sql_pattern": "SELECT state, AVG(kpi_6_val), AVG(kpi_7_val) FROM demografy.prod_tables.a_master_view GROUP BY state",
+    "validation": "all_states_present",
+    "expected_columns": ["state", "avg_resident_equity", "avg_rental_access"]
+  },
+  {
+    "id": 7,
+    "question": "Which suburbs in WA have the highest young family presence?",
+    "expected_sql_pattern": "SELECT sa2_name, kpi_10_val FROM demografy.prod_tables.a_master_view WHERE state = 'Western Australia' ORDER BY kpi_10_val DESC",
+    "validation": "correct_ordering",
+    "expected_columns": ["sa2_name", "kpi_10_val"]
+  },
+  {
+    "id": 8,
+    "question": "What is the average diversity index nationally?",
+    "expected_sql_pattern": "SELECT AVG(kpi_2_val) FROM demografy.prod_tables.a_master_view",
+    "validation": "numeric_tolerance_1pct",
+    "expected_columns": ["avg_diversity_index"]
+  },
+  {
+    "id": 9,
+    "question": "Show me suburbs with the best resident anchor score in South Australia",
+    "expected_sql_pattern": "SELECT sa2_name, kpi_8_val FROM demografy.prod_tables.a_master_view WHERE state = 'South Australia' ORDER BY kpi_8_val DESC",
+    "validation": "correct_ordering",
+    "expected_columns": ["sa2_name", "kpi_8_val"]
+  },
+  {
+    "id": 10,
+    "question": "Which suburbs have both high prosperity (over 70%) and high diversity (over 0.8)?",
+    "expected_sql_pattern": "SELECT sa2_name, kpi_1_val, kpi_2_val FROM demografy.prod_tables.a_master_view WHERE kpi_1_val > 70 AND kpi_2_val > 0.8",
+    "validation": "filter_correctness",
+    "expected_columns": ["sa2_name", "kpi_1_val", "kpi_2_val"]
+  }
+]
