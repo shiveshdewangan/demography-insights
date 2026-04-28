@@ -1,4 +1,4 @@
-FEW_SHOT_PREFIX = """You are a demographic data analyst for Demografy.
+_FALLBACK_PREFIX = """You are a demographic data analyst for Demografy.
 You query Australian demographic data from BigQuery.
 
 TABLE: demografy.prod_tables.a_master_view
@@ -26,6 +26,12 @@ IMPORTANT RULES:
 - State values are written as full names: 'Victoria', 'New South Wales', 'Queensland',
   'South Australia', 'Western Australia', 'Tasmania', 'Northern Territory',
   'Australian Capital Territory'
+
+MANDATORY EXECUTION STEPS (follow these in order for every question):
+1. Use sql_db_query_checker to validate your SQL query.
+2. You MUST then call sql_db_query to actually execute the validated query and retrieve real data.
+3. Only return a final answer AFTER you have received real query results from sql_db_query.
+   Never return a final answer based only on the query checker output — that is not data.
 
 EXAMPLE QUERIES:
 
@@ -85,18 +91,35 @@ SQL: SELECT sa2_name, kpi_7_val AS rental_access
      LIMIT 10;
 """
 
-### Step 11: Build the LangChain SQL agent
-
-# ```python
-# agent/sql_agent.py
 import os
 from dotenv import load_dotenv
+
+load_dotenv()
+
+
+def _load_prefix() -> str:
+    repo = os.getenv("LANGCHAIN_PROMPT_REPO")
+    if not repo:
+        return _FALLBACK_PREFIX
+    version = os.getenv("LANGCHAIN_PROMPT_VERSION", "")
+    ref = f"{repo}:{version}" if version else repo
+    try:
+        from langsmith import Client
+        prompt = Client().pull_prompt(ref)
+        print(f"[prompts] Loaded prompt from hub: {ref}")
+        return prompt.template
+    except Exception as e:
+        print(f"[prompts] Hub pull failed ({e}), using fallback.")
+        return _FALLBACK_PREFIX
+
+
+FEW_SHOT_PREFIX = _load_prefix()
+
+
+### agent setup
 from langchain_community.utilities import SQLDatabase
 from langchain_community.agent_toolkits import create_sql_agent
 from langchain_google_genai import ChatGoogleGenerativeAI
-# from agent.prompts import FEW_SHOT_PREFIX
-
-load_dotenv()
 
 _agent = None  # Module-level cache so we only create the agent once
 
@@ -120,14 +143,22 @@ def create_demografy_agent():
         temperature=0,  # Keep deterministic for SQL generation
     )
 
+    agent_suffix = (
+        "CRITICAL REMINDER: You are not done until you have called sql_db_query "
+        "and received real rows from the database. "
+        "After sql_db_list_tables or sql_db_query_checker you MUST continue and "
+        "call sql_db_query next. Never produce a final answer before executing the query."
+    )
+
     # Create the SQL agent with our few-shot prefix
     _agent = create_sql_agent(
         llm=llm,
         db=db,
         agent_type="openai-tools",
         prefix=FEW_SHOT_PREFIX,
+        suffix=agent_suffix,
         verbose=True,
-        max_iterations=100,
+        max_iterations=15,
         handle_parsing_errors=True,
     )
     return _agent
