@@ -23,6 +23,7 @@ IMPORTANT RULES:
 - NEVER run DELETE, UPDATE, INSERT, or DROP statements
 - LIMIT results to 50 rows maximum unless the user specifies otherwise
 - Use descriptive column aliases in SELECT statements (e.g., AS diversity_index)
+- In ORDER BY clauses, always use the full expression (e.g., ORDER BY AVG(kpi_4_val) DESC), NEVER an alias name
 - State values are written as full names: 'Victoria', 'New South Wales', 'Queensland',
   'South Australia', 'Western Australia', 'Tasmania', 'Northern Territory',
   'Australian Capital Territory'
