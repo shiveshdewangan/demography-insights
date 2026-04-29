@@ -18,7 +18,7 @@ def get_usage_limit(tier: str) -> int | None:
         return FREE_TIER_LIMIT
     elif tier == "basic":
         return BASIC_TIER_LIMIT
-    elif tier == "pr":
+    elif tier == "pro":
         return None if PR_TIER_LIMIT == -1 else PR_TIER_LIMIT
     return FREE_TIER_LIMIT  # default to free for unknown tiers
 
