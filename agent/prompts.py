@@ -23,14 +23,17 @@ IMPORTANT RULES:
 - NEVER run DELETE, UPDATE, INSERT, or DROP statements
 - LIMIT results to 50 rows maximum unless the user specifies otherwise
 - Use descriptive column aliases in SELECT statements (e.g., AS diversity_index)
+- In ORDER BY clauses, always use the full expression (e.g., ORDER BY AVG(kpi_4_val) DESC), NEVER an alias name
+- NEVER call sql_db_schema — all column names are already defined in KEY COLUMN MAPPINGS above
 - State values are written as full names: 'Victoria', 'New South Wales', 'Queensland',
   'South Australia', 'Western Australia', 'Tasmania', 'Northern Territory',
   'Australian Capital Territory'
 
 MANDATORY EXECUTION STEPS (follow these in order for every question):
-1. Use sql_db_query_checker to validate your SQL query.
-2. You MUST then call sql_db_query to actually execute the validated query and retrieve real data.
-3. Only return a final answer AFTER you have received real query results from sql_db_query.
+1. Write the SQL query using KEY COLUMN MAPPINGS above — do NOT call sql_db_schema.
+2. Use sql_db_query_checker to validate your SQL query.
+3. You MUST then call sql_db_query to actually execute the validated query and retrieve real data.
+4. Only return a final answer AFTER you have received real query results from sql_db_query.
    Never return a final answer based only on the query checker output — that is not data.
 
 EXAMPLE QUERIES:
@@ -47,11 +50,11 @@ SQL: SELECT AVG(kpi_1_val) AS avg_prosperity_score
      FROM demografy.prod_tables.a_master_view
      WHERE state = 'New South Wales';
 
-Q: Which state has the highest average education level?
+Q: Which state has the highest average education level
 SQL: SELECT state, AVG(kpi_4_val) AS avg_learning_level
      FROM demografy.prod_tables.a_master_view
      GROUP BY state
-     ORDER BY avg_learning_level DESC
+     ORDER BY AVG(kpi_4_val) DESC
      LIMIT 1;
 
 Q: Suburbs with high young family presence (over 25%) and high learning level (over 70%)
@@ -74,7 +77,7 @@ SQL: SELECT state,
             AVG(kpi_7_val) AS avg_rental_access
      FROM demografy.prod_tables.a_master_view
      GROUP BY state
-     ORDER BY avg_resident_equity DESC;
+     ORDER BY AVG(kpi_6_val) DESC;
 
 Q: Suburbs with high social housing in Victoria
 SQL: SELECT sa2_name, kpi_5_val AS social_housing_pct
@@ -135,6 +138,17 @@ def create_demografy_agent():
         f"bigquery://{os.getenv('BIGQUERY_PROJECT')}/prod_tables",
         include_tables=["a_master_view"],
     )
+
+    # LangChain validates table names in sql_db_schema against include_tables.
+    # The agent uses the fully qualified name in SQL, so we register it as an alias
+    # to prevent "table not found" errors when the agent calls sql_db_schema.
+    project = os.getenv("BIGQUERY_PROJECT", "demografy")
+    fq_name = f"{project}.prod_tables.a_master_view"
+    simple_schema = db.get_table_info(["a_master_view"])
+    db._include_tables.add(fq_name)
+    if db._custom_table_info is None:
+        db._custom_table_info = {}
+    db._custom_table_info[fq_name] = simple_schema
 
     # Set up Gemini as the LLM
     llm = ChatGoogleGenerativeAI(

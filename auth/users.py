@@ -36,13 +36,13 @@ def update_last_login(user_id: str):
 
 
 def should_reset_usage(user_id: str) -> bool:
-    """Returns True if no last_login is recorded or 24+ hours have elapsed."""
+    """Returns True if the user has never queried, or 24+ hours since their last query."""
     users = load_users()
-    last_login_str = users.get(user_id, {}).get("last_login")
-    if not last_login_str:
+    last_queried_str = users.get(user_id, {}).get("last_queried")
+    if not last_queried_str:
         return True
-    last_login = datetime.fromisoformat(last_login_str)
-    return datetime.now() - last_login >= timedelta(hours=RESET_HOURS)
+    last_queried = datetime.fromisoformat(last_queried_str)
+    return datetime.now() - last_queried >= timedelta(hours=RESET_HOURS)
 
 
 def reset_usage(user_id: str):
@@ -54,10 +54,11 @@ def reset_usage(user_id: str):
 
 
 def increment_usage(user_id: str):
-    """Increment the question usage count for a user."""
+    """Increment the question usage count and record the query time."""
     users = load_users()
     users.setdefault(user_id, {"usage": 0})
     users[user_id]["usage"] = users[user_id].get("usage", 0) + 1
+    users[user_id]["last_queried"] = datetime.now().isoformat()
     save_users(users)
 
 
@@ -69,3 +70,8 @@ def get_usage(user_id: str) -> int:
 def get_last_login(user_id: str) -> str | None:
     users = load_users()
     return users.get(user_id, {}).get("last_login")
+
+
+def get_last_queried(user_id: str) -> str | None:
+    users = load_users()
+    return users.get(user_id, {}).get("last_queried")
