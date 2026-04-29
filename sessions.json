@@ -18,5 +18,10 @@
     "user_id": "user_001",
     "tier": "free",
     "expires_at": "2026-05-06T18:17:54.307923"
+  },
+  "98e81aaf-7dda-4150-8777-4c28744f0930": {
+    "user_id": "user_006",
+    "tier": "basic",
+    "expires_at": "2026-05-06T23:41:17.767268"
   }
 }
