@@ -3,9 +3,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-FREE_TIER_LIMIT = int(os.getenv("FREE_TIER_LIMIT", 3))
-BASIC_TIER_LIMIT = int(os.getenv("BASIC_TIER_LIMIT", 6))
-PR_TIER_LIMIT = int(os.getenv("PR_TIER_LIMIT", -1))  # -1 means unlimited
+FREE_TIER_LIMIT = int(os.getenv("FREE_TIER_LIMIT", 5))
+BASIC_TIER_LIMIT = int(os.getenv("BASIC_TIER_LIMIT", 20))
+PR_TIER_LIMIT = int(os.getenv("PR_TIER_LIMIT", 50))  # 50
 
 
 def get_usage_limit(tier: str) -> int | None:

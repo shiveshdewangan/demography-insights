@@ -114,6 +114,7 @@ if is_near_limit(usage, tier):
         """,
         unsafe_allow_html=True,
     )
+    st.toast(f"⚠️ Warning: {pct}% of your {tier} limit used ({usage}/{limit}).", icon="⚠️")
 
 # -------------------------------
 # LOAD CHAT HISTORY
