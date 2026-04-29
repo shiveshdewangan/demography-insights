@@ -9,7 +9,6 @@ from auth.login import login_signup
 from auth.users import get_usage, increment_usage
 from auth.rbac import is_within_limit, get_usage_limit, is_near_limit
 
-
 # -------------------------------
 # FILE PATHS
 # -------------------------------
@@ -69,6 +68,135 @@ def parse_response(text):
 # -------------------------------
 st.set_page_config(page_title="Suburb AI SaaS", layout="wide")
 
+# Styling
+st.markdown(
+    """
+<style>
+
+/* Import Open Sauce Font */
+@import url('https://fonts.cdnfonts.com/css/open-sauce-one');
+
+/* Apply font globally */
+html, body, [class*="css"]  {
+    font-family: 'Open Sauce One', sans-serif;
+}
+
+/* Background */
+.stApp {
+    background: linear-gradient(180deg, #ffffff, #f5f7fb);
+}
+
+/* Title Styling */
+h1 {
+    background: linear-gradient(90deg, #8df2ed, #5e17eb);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Chat bubbles */
+[data-testid="stChatMessage"] {
+    border-radius: 12px;
+    padding: 12px;
+}
+
+/* User message */
+[data-testid="stChatMessage"][data-testid*="user"] {
+    background: #f0f2f6;
+}
+
+/* Assistant message */
+[data-testid="stChatMessage"][data-testid*="assistant"] {
+    background: linear-gradient(135deg, #8df2ed, #e8eaff);
+}
+
+/* Buttons */
+.stButton>button {
+    background: linear-gradient(135deg, #8df2ed, #5e17eb);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-weight: 600;
+}
+
+.stButton>button:hover {
+    opacity: 0.9;
+}
+
+/* Warning / Alerts */
+.custom-warning {
+    background: #e67e22;
+    color: white;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.custom-error {
+    background: #c0392b;
+    color: white;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+</style>
+""",
+    unsafe_allow_html=True,
+)
+# End of styling
+
+st.image("assets/logo.png", width=300)
+
+with st.sidebar:
+    st.image("assets/logo1.png", width=80)
+
+st.markdown(
+    """
+<div style="
+    background: linear-gradient(135deg, #8df2ed, #5e17eb);
+    padding: 16px;
+    border-radius: 10px;
+    color: white;
+    font-weight: 600;
+">
+    🏡 Find the best suburbs with AI insights
+</div>
+""",
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    """
+<style>
+
+/* Fix ALL chat message text visibility */
+[data-testid="stChatMessage"] {
+    color: #272d2d !important;
+}
+
+/* Ensure nested elements (markdown, code, etc.) are visible */
+[data-testid="stChatMessage"] * {
+    color: #272d2d !important;
+}
+
+/* Assistant message background */
+[data-testid="stChatMessage"][data-testid*="assistant"] {
+    background: #f5f7fb;
+    border-radius: 12px;
+    padding: 12px;
+}
+
+/* User message */
+[data-testid="stChatMessage"][data-testid*="user"] {
+    background: #eaeef6;
+    border-radius: 12px;
+    padding: 12px;
+}
+
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
 login_signup()
 
 if "user" not in st.session_state:
@@ -78,7 +206,7 @@ if "user" not in st.session_state:
 user = st.session_state.user
 tier = st.session_state.get("tier", "free")
 
-st.title("🏡 Suburb Finder AI")
+# st.title("🏡 Suburb Finder AI")
 
 # -------------------------------
 # TIER LIMIT CHECK
@@ -130,7 +258,6 @@ for chat in chat_history:
 prompt = st.chat_input("Ask your question...")
 
 if prompt:
-
     # -------------------------------
     # SAVE USER MESSAGE
     # -------------------------------
