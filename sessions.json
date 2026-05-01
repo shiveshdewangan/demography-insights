@@ -18,5 +18,30 @@
     "user_id": "user_001",
     "tier": "free",
     "expires_at": "2026-05-06T18:17:54.307923"
+  },
+  "98e81aaf-7dda-4150-8777-4c28744f0930": {
+    "user_id": "user_006",
+    "tier": "basic",
+    "expires_at": "2026-05-06T23:41:17.767268"
+  },
+  "04f3fe3c-0f77-4365-8ed8-bf9d57594141": {
+    "user_id": "user_022",
+    "tier": "free",
+    "expires_at": "2026-05-08T10:26:46.852517"
+  },
+  "79b07001-f1ac-46c0-86da-7c0224492f07": {
+    "user_id": "user_022",
+    "tier": "free",
+    "expires_at": "2026-05-08T10:34:58.958102"
+  },
+  "70faf1c0-cb91-4eb3-b030-700a0f3efafa": {
+    "user_id": "user_022",
+    "tier": "free",
+    "expires_at": "2026-05-08T10:37:36.524364"
+  },
+  "ad7da5f6-831b-4e9e-928b-a31fd5604455": {
+    "user_id": "user_022",
+    "tier": "free",
+    "expires_at": "2026-05-08T10:37:38.527915"
   }
 }
