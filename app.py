@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 from agent.prompts import ask_question
 from auth.login import login_signup
-from auth.users import get_usage, increment_usage
+from auth.users import get_usage, increment_usage, get_last_queried
 from auth.rbac import is_within_limit, get_usage_limit, is_near_limit
 from auth.sessions import delete_session
 
@@ -228,7 +228,7 @@ with st.sidebar:
                     <div style="position: absolute; top: 0; left: 0; width: 6px; height: 100%; background: #e11d48;"></div>
                     <p style="margin: 0; color: #9f1239; font-weight: 700; font-size: 14px;">⚠️ EXHAUSTION WARNING</p>
                     <p style="margin: 4px 0 0 0; color: #be123c; font-size: 12px; line-height: 1.4;">
-                        You have used <b>{used} of {limit}</b> questions. Your standard research tier credits are nearly exhausted. 
+                        You have used <b>{usage} of {limit}</b> questions. Your standard research tier credits are nearly exhausted.
                         <b>Reset:</b> 24h from last login.
                     </p>
                 </div>
@@ -354,11 +354,20 @@ with chat_col:
             st.rerun()
         
     else:
+        last_queried_str = get_last_queried(user)
+        if last_queried_str:
+            reset_at = datetime.fromisoformat(last_queried_str) + timedelta(hours=24)
+            secs_left = max(0, int((reset_at - datetime.now()).total_seconds()))
+            hrs, rem = divmod(secs_left, 3600)
+            mins, secs = divmod(rem, 60)
+            reset_display = f"{hrs}h {mins}m {secs}s"
+        else:
+            reset_display = "24h"
         st.markdown(f"""
             <div style="background: #FF0000; padding: 16px; border-radius: 16px; margin-top: 20px; text-align: center;">
                 <p style="margin: 0; color: #FFFFFF; font-weight: 700; font-size: 20px; letter-spacing: 0.05em;">ACCESS LOCKED</p>
                 <p style="margin: 4px 0 0 0; color: #FFFFFF; font-size: 15px; opacity: 0.9;">
-                    Limit reached. Resets in <b></b>.
+                    Limit reached. Resets in <b>{reset_display}</b>.
                 </p>
             </div>
         """, unsafe_allow_html=True)
