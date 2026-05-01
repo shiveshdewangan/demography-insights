@@ -1,11 +1,12 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 import json
 import os
 import re
 from datetime import datetime, timedelta
 
-from agent.prompts import ask_question
+from agent.memory import ask_question_with_memory, clear_memory
 from auth.login import login_signup
 from auth.users import get_usage, increment_usage, get_last_queried
 from auth.rbac import is_within_limit, get_usage_limit, is_near_limit
@@ -38,32 +39,96 @@ def save_chat(user_id, chat):
 # -------------------------------
 # PARSER
 # -------------------------------
-def parse_response(text):
-    data = []
+def _coerce_numeric_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Convert columns to numeric where >50% of values parse successfully."""
+    for col in df.columns:
+        converted = pd.to_numeric(df[col], errors="coerce")
+        if converted.notna().mean() > 0.5:
+            df[col] = converted
+    return df
 
-    pattern = r"(.+): Rental Access ([\d.]+)%, Social Housing ([\d.]+)%"
-    matches = re.findall(pattern, text)
 
-    if matches:
-        for m in matches:
-            data.append(
-                {
-                    "Suburb": m[0].strip(),
-                    "Rental Access (%)": float(m[1]),
-                    "Social Housing (%)": float(m[2]),
-                }
-            )
-        return pd.DataFrame(data)
+def parse_response(text: str) -> pd.DataFrame | None:
+    """Extract a DataFrame from the agent's text response.
 
-    if ":" in text:
-        possible_list = text.split(":")[-1]
-        possible_list = possible_list.replace(" and ", ",")
-        suburbs = [s.strip() for s in possible_list.split(",") if s.strip()]
+    Tries, in order:
+      1. Markdown table  (| col | col | …)
+      2. Numbered/bulleted list with key:value pairs
+      3. Legacy rental/social-housing pattern
+    """
+    # 1. Markdown table
+    all_lines = text.splitlines()
+    table_lines = [l.strip() for l in all_lines if l.strip().startswith("|")]
+    if len(table_lines) >= 2:
+        # Drop separator rows like |---|---| or | :---: |
+        data_lines = [
+            l for l in table_lines
+            if not re.fullmatch(r"\|[\s\-|:]+\|", l)
+        ]
+        if len(data_lines) >= 2:
+            try:
+                headers = [h.strip() for h in data_lines[0].strip("|").split("|")]
+                rows = []
+                for row_line in data_lines[1:]:
+                    cells = [c.strip() for c in row_line.strip("|").split("|")]
+                    # Pad or trim cells to match header count
+                    while len(cells) < len(headers):
+                        cells.append("")
+                    rows.append(dict(zip(headers, cells[:len(headers)])))
+                if rows:
+                    df = pd.DataFrame(rows)
+                    return _coerce_numeric_columns(df)
+            except Exception:
+                pass
 
-        if len(suburbs) > 1:
-            return pd.DataFrame({"Suburb": suburbs})
+    # 2. Numbered/bulleted list  →  "1. Suburb: 45.3"  or  "- Suburb: 45.3"
+    kv_pattern = re.compile(r"^(?:\d+\.|[-*•])\s*(.+?):\s*([\d,.]+)", re.MULTILINE)
+    kv_matches = kv_pattern.findall(text)
+    if len(kv_matches) >= 2:
+        df = pd.DataFrame(kv_matches, columns=["Label", "Value"])
+        df["Value"] = pd.to_numeric(df["Value"].str.replace(",", ""), errors="coerce")
+        return df.dropna(subset=["Value"]).reset_index(drop=True)
+
+    # 3. Legacy rental / social-housing pattern
+    legacy = re.findall(r"(.+): Rental Access ([\d.]+)%, Social Housing ([\d.]+)%", text)
+    if legacy:
+        df = pd.DataFrame(legacy, columns=["Suburb", "Rental Access (%)", "Social Housing (%)"])
+        return _coerce_numeric_columns(df)
 
     return None
+
+
+def render_assistant_message(content: str):
+    """Render an assistant message: markdown text + dataframe + chart if data found."""
+    st.markdown(content)
+    df = parse_response(content)
+    if df is None or df.empty:
+        return
+
+    st.dataframe(df, width="stretch")
+
+    numeric_cols = df.select_dtypes(include="number").columns.tolist()
+    label_col = df.columns[0]
+
+    if len(numeric_cols) >= 2:
+        fig = px.bar(
+            df, x=label_col, y=numeric_cols,
+            barmode="group", title="Comparison", template="plotly_white",
+        )
+    elif len(numeric_cols) == 1:
+        fig = px.bar(
+            df, x=numeric_cols[0], y=label_col,
+            orientation="h", title=numeric_cols[0],
+            template="plotly_white",
+            color=numeric_cols[0], color_continuous_scale="Purples",
+        )
+        fig.update_layout(yaxis={"categoryorder": "total ascending"})
+    else:
+        return
+
+    fig.update_layout(margin=dict(t=40, b=20, l=20, r=20), height=350, coloraxis_showscale=False)
+    st.plotly_chart(fig, width="stretch")
+
 
 if "clicked_query" not in st.session_state:
     st.session_state.clicked_query = None
@@ -264,7 +329,7 @@ with st.sidebar:
 
 
         # 5. Sidebar Buttons
-    if st.button("🗑️ Clear History", use_container_width=True):
+    if st.button("🗑️ Clear History", width='stretch'):
          # 1. Clear the remote database (calls your existing save function with empty list)
         save_chat(user, [])
         
@@ -272,11 +337,14 @@ with st.sidebar:
         if "chat_history" in st.session_state:
             st.session_state.chat_history = []
         
-        # 3. Rerun to refresh the chat container
+        # 3. Clear LangChain conversation memory so context doesn't bleed into new chat
+        clear_memory(user)
+
+        # 4. Rerun to refresh the chat container
         st.rerun()
             
 
-    if st.button("🚪 Logout", use_container_width=True):
+    if st.button("🚪 Logout", width='stretch'):
         token = st.session_state.get("session_token")
         if token:
             delete_session(token)
@@ -305,7 +373,10 @@ with chat_col:
         else:
             for msg in chat_history:
                 with st.chat_message(msg["role"]):
-                    st.markdown(msg["content"])
+                    if msg["role"] == "assistant":
+                        render_assistant_message(msg["content"])
+                    else:
+                        st.markdown(msg["content"])
 
     if remaining>0:
         prompt = st.chat_input("Ask your question...")
@@ -321,28 +392,13 @@ with chat_col:
                 
                 with st.spinner("Analyzing data..."):
                     try:
-                        response = ask_question(final_prompt)
+                        response = ask_question_with_memory(user, final_prompt, chat_history)
                     except Exception as e:
                         st.error(f"Agent error: {e}")
                         st.stop()
                 
                 with st.chat_message("assistant"):
-                    st.markdown(response)
-                    
-                    # Logic to handle DataFrames/Lists for charts
-                    df = None
-                    if isinstance(response, pd.DataFrame):
-                        df = response
-                    elif isinstance(response, list):
-                        df = pd.DataFrame(response)
-                    elif isinstance(response, str):
-                        df = parse_response(response) # Uses your existing parser
-
-                    if df is not None and not df.empty:
-                        st.dataframe(df)
-                        numeric_cols = df.select_dtypes(include=["float64", "int64"]).columns
-                        if len(numeric_cols) > 0:
-                            st.bar_chart(df.set_index(df.columns[0])[numeric_cols[0]])
+                    render_assistant_message(str(response))
 
 
         # -------------------------------
@@ -364,11 +420,9 @@ with chat_col:
         else:
             reset_display = "24h"
         st.markdown(f"""
-            <div style="background: #FF0000; padding: 16px; border-radius: 16px; margin-top: 20px; text-align: center;">
-                <p style="margin: 0; color: #FFFFFF; font-weight: 700; font-size: 20px; letter-spacing: 0.05em;">ACCESS LOCKED</p>
-                <p style="margin: 4px 0 0 0; color: #FFFFFF; font-size: 15px; opacity: 0.9;">
-                    Limit reached. Resets in <b>{reset_display}</b>.
-                </p>
+            <div style="background: #FF0000; padding: 8px 12px; border-radius: 8px; margin-top: 10px; text-align: center; display: inline-block; width: 100%;">
+                <span style="color: #FFFFFF; font-weight: 700; font-size: 13px; letter-spacing: 0.04em;">🔒 ACCESS LOCKED</span>
+                <span style="color: #FFFFFF; font-size: 12px; opacity: 0.9; margin-left: 8px;">Resets in <b>{reset_display}</b></span>
             </div>
         """, unsafe_allow_html=True)
 
@@ -391,7 +445,7 @@ with glossary_col:
             # Displaying demo queries as code blocks makes them easy to copy-paste
 
         for query in demo_queries:
-            st.button(query, use_container_width=True, on_click=handle_click, args=(query,))
+            st.button(query, width='stretch', on_click=handle_click, args=(query,))
 
 
         # 2. Collapsible Glossary
