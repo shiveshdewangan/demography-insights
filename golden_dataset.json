@@ -1,0 +1,72 @@
+[
+  {
+    "id": 11,
+    "question": "What is the prosperity score for Richmond in NSW vs Richmond in Victoria?",
+    "expected_sql_pattern": "SELECT sa2_name, state, kpi_1_val FROM demografy.prod_tables.a_master_view WHERE sa2_name = 'Richmond' AND state IN ('New South Wales', 'Victoria')",
+    "validation": "multi_state_filter",
+    "expected_columns": ["sa2_name", "state", "kpi_1_val"]
+  },
+  {
+    "id": 12,
+    "question": "Which suburbs in Tasmania have social housing above 15% but prosperity below 40%?",
+    "expected_sql_pattern": "SELECT sa2_name, kpi_5_val, kpi_1_val FROM demografy.prod_tables.a_master_view WHERE state = 'Tasmania' AND kpi_5_val > 15 AND kpi_1_val < 40",
+    "validation": "double_threshold_logic",
+    "expected_columns": ["sa2_name", "kpi_5_val", "kpi_1_val"]
+  },
+  {
+    "id": 13,
+    "question": "Rank all Australian states by their average rental affordability index",
+    "expected_sql_pattern": "SELECT state, AVG(kpi_7_val) AS avg_rental_affordability FROM demografy.prod_tables.a_master_view GROUP BY state ORDER BY avg_rental_affordability DESC",
+    "validation": "group_by_state_agg",
+    "expected_columns": ["state", "avg_rental_affordability"]
+  },
+  {
+    "id": 14,
+    "question": "Which 5 suburbs in Western Australia have the lowest community stability?",
+    "expected_sql_pattern": "SELECT sa2_name, kpi_8_val FROM demografy.prod_tables.a_master_view WHERE state = 'Western Australia' ORDER BY kpi_8_val ASC LIMIT 5",
+    "validation": "ascending_order_check",
+    "expected_columns": ["sa2_name", "kpi_8_val"]
+  },
+  {
+    "id": 15,
+    "question": "Find suburbs in the Northern Territory with a population under 500",
+    "expected_sql_pattern": "SELECT sa2_name, population FROM demografy.prod_tables.a_master_view WHERE state = 'Northern Territory' AND population < 500",
+    "validation": "numeric_filter_boundary",
+    "expected_columns": ["sa2_name", "population"]
+  },
+  {
+    "id": 16,
+    "question": "What is the total population covered in the entire dataset?",
+    "expected_sql_pattern": "SELECT SUM(population) FROM demografy.prod_tables.a_master_view",
+    "validation": "sum_aggregation",
+    "expected_columns": ["total_population"]
+  },
+  {
+    "id": 17,
+    "question": "Find highly diverse suburbs (diversity > 0.8) with low migration footprint (< 10%)",
+    "expected_sql_pattern": "SELECT sa2_name, kpi_2_val, kpi_3_val FROM demografy.prod_tables.a_master_view WHERE kpi_2_val > 0.8 AND kpi_3_val < 10",
+    "validation": "inverse_kpi_filter",
+    "expected_columns": ["sa2_name", "kpi_2_val", "kpi_3_val"]
+  },
+  {
+    "id": 18,
+    "question": "Show me 10 suburbs in QLD with the highest household mobility potential",
+    "expected_sql_pattern": "SELECT sa2_name, kpi_9_val FROM demografy.prod_tables.a_master_view WHERE state = 'Queensland' ORDER BY kpi_9_val DESC LIMIT 10",
+    "validation": "descending_limit_check",
+    "expected_columns": ["sa2_name", "kpi_9_val"]
+  },
+  {
+    "id": 19,
+    "question": "List all suburbs in the Australian Capital Territory",
+    "expected_sql_pattern": "SELECT sa2_name FROM demografy.prod_tables.a_master_view WHERE state = 'Australian Capital Territory'",
+    "validation": "exact_territory_match",
+    "expected_columns": ["sa2_name"]
+  },
+  {
+    "id": 20,
+    "question": "What is the prosperity of Hogwarts?",
+    "expected_sql_pattern": "SELECT kpi_1_val FROM demografy.prod_tables.a_master_view WHERE sa2_name = 'Hogwarts'",
+    "validation": "empty_result_handling",
+    "expected_columns": ["kpi_1_val"]
+  }
+]
