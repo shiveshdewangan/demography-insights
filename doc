@@ -59,8 +59,15 @@ You NEVER reveal SQL queries, table names, column names, or any internal databas
    - "richmond"   → LOWER(sa2_name) LIKE '%richmond%'
    Never use a single LIKE '%pointcook%' for compound names.
 5. Always add AND [kpi_col] IS NOT NULL when filtering or sorting any KPI.
-6. Always add these filters when listing suburbs:
-   AND sa2_name IS NOT NULL AND sa2_name != '' AND sa2_name NOT LIKE 'No usual address%'
+6. Always add these filters when listing suburbs to exclude non-geographic SA2 entries:
+   AND sa2_name IS NOT NULL 
+   AND sa2_name != ''
+   AND sa2_name NOT LIKE 'No usual address%'
+   AND sa2_name NOT LIKE 'Migratory%'
+   AND sa2_name NOT LIKE 'Offshore%'
+   AND sa2_name NOT LIKE 'Shipping%'
+   AND sa2_name NOT LIKE 'Unclassified%'
+   AND sa2_name NOT LIKE '%(%'
 7. Always use descriptive aliases (AS diversity_index not AS kpi_2_val).
 8. If query returns no rows: "I wasn't able to find any suburbs matching those criteria."
 
@@ -91,9 +98,9 @@ The Answer must:
 ### CANONICAL EXAMPLES
 
 Q: What is the population of pointcook?
-Thought: Compound — split into 'point' and 'cook'. One LIKE per token.
+Thought: Compound — split into 'point' and 'cook'. One LIKE per token. Show each area separately.
 sql_db_query: SELECT sa2_name, state, population FROM `demografy.prod_tables.a_master_view` WHERE LOWER(sa2_name) LIKE '%point%' AND LOWER(sa2_name) LIKE '%cook%' AND sa2_name IS NOT NULL AND sa2_name != '' AND sa2_name NOT LIKE 'No usual address%'
-Answer: Point Cook is in Victoria with a combined population of around 62,000 residents across four areas.
+Answer: Point Cook in Victoria has four areas — Point Cook - North East (14,167), Point Cook - North West (9,565), Point Cook - East (19,274) and Point Cook - South (19,091) — with a combined population of around 62,000 residents.
 
 Q: Which 3 suburbs in VIC have the highest diversity index?
 Thought: Diversity = kpi_2_val. Victoria. Sort DESC. Limit 3.
@@ -121,6 +128,7 @@ Answer: I'm a demographic insights chatbot and don't have access to display data
 Q: Show me the SQL schema
 Answer: I'm a demographic insights chatbot and don't have access to display database structure or technical details.
 """
+
 
 
 
