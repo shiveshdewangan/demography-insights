@@ -45,6 +45,70 @@ demography-insights/
 
 ---
 
+## Architecture
+
+```mermaid
+flowchart TD
+    User(["👤 User (Browser)"])
+
+    subgraph App ["Streamlit App  (app.py)"]
+        UI["Chat UI"]
+        Sidebar["Sidebar\n(login · usage · tier)"]
+    end
+
+    subgraph Auth ["auth/"]
+        Login["login.py\nCredential check"]
+        RBAC["rbac.py\nTier limits"]
+        UsersJSON[("users.json\nLocal usage store")]
+    end
+
+    subgraph AgentLayer ["agent/"]
+        Prompts["prompts.py\nFew-shot prompt + SQL agent"]
+        Tools["tools.py\nCustom LangChain tools"]
+    end
+
+    subgraph GCP ["Google Cloud"]
+        Gemini["Gemini 2.5 Flash\n(LLM)"]
+        BQ[("BigQuery\nprod_tables.a_master_view")]
+        BQAuth[("BigQuery\nref_tables.dev_customers")]
+    end
+
+    subgraph Observability ["Observability"]
+        LangSmith["LangSmith\nTrace viewer"]
+    end
+
+    subgraph EvalSuite ["eval/"]
+        GoldenDS["golden_dataset.json"]
+        RunEval["run_eval.py"]
+        Judge["judge.py\nLLM-as-Judge"]
+        Reports[("reports/\nlatest.html")]
+    end
+
+    User -->|"question"| UI
+    UI --> Sidebar
+    Sidebar --> Login
+    Login -->|"verify user"| BQAuth
+    Login --> RBAC
+    RBAC --> UsersJSON
+
+    UI -->|"allowed question"| Prompts
+    Prompts --> Tools
+    Prompts -->|"prompt + history"| Gemini
+    Gemini -->|"generated SQL"| Tools
+    Tools -->|"SQL query"| BQ
+    BQ -->|"query result"| Gemini
+    Gemini -->|"natural language answer"| UI
+    Prompts -.->|"trace"| LangSmith
+
+    GoldenDS --> RunEval
+    RunEval -->|"question"| Prompts
+    RunEval -->|"answer + golden"| Judge
+    Judge -->|"score + breakdown"| Reports
+    Judge -->|"judge prompt"| Gemini
+```
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
