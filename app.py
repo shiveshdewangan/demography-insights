@@ -302,7 +302,8 @@ with st.sidebar:
     st.divider()
 
         # --- 3. HIGH-READABILITY UPGRADE CARD ---
-    st.markdown("""
+    if tier.lower() != "pro":
+     st.markdown("""
             <div style="background-color: #ffffff; 
                         padding: 16px; 
                         border-radius: 12px; 
